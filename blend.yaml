@@ -17,13 +17,16 @@ spec:
       name: acryl-router
     - id: routes
       name: routes
+    # The solid both states share: the 3D state picks it with its mesh bar, the Flat state draws it unfolded. Served at /selection.
+    - id: selection
+      name: selection
     # The app's first state (3D): a Blender-like three.js space you can orbit, pan and zoom in, with painted X, Y and Z axes. Page: /space.
     - id: space
       name: space
     # The state menu: the bar at the top of every state page for switching between them.
     - id: states
       name: states
-    # The second state: Flat, a page of its own, empty for now. Page: /flat.
+    # The second state: Flat, the selected solid unfolded into one flat sheet. Page: /flat.
     - id: flat
       name: flat
     # Plugin folders without a row of their own (a live install with the door's `plugin add`); a folder with a row is the app's and starts by it.

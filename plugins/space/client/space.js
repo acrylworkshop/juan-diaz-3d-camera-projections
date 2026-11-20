@@ -571,10 +571,31 @@ function start(webgl) {
   }
   projectionButton.addEventListener('click', toggleProjection)
   frameButton.addEventListener('click', frame)
+  // The choice is shared with the Flat state, which draws the same solid unfolded.
+  const selectionUrl = document.getElementById('space-root')?.dataset.selection
+  let saving = Promise.resolve()
   for (const button of document.querySelectorAll('[data-mesh]')) {
-    button.addEventListener('click', () => showSolid(button.dataset.mesh))
+    button.addEventListener('click', () => {
+      showSolid(button.dataset.mesh)
+      if (selectionUrl === undefined || selectionUrl === '') return
+      // One request after another, so a burst of clicks cannot save an older solid last.
+      saving = saving
+        .then(() =>
+          fetch(selectionUrl, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ solid: button.dataset.mesh }),
+          }),
+        )
+        .then(
+          () => undefined,
+          () => undefined,
+        )
+    })
   }
-  showSolid('cube')
+  // The page comes with the shared selection already pressed.
+  const chosen = document.querySelector('[data-mesh][aria-pressed="true"]')?.dataset.mesh
+  showSolid(chosen ?? 'cube')
 
   new ResizeObserver(resize).observe(canvas)
   canvas.addEventListener('webglcontextlost', (event) => {

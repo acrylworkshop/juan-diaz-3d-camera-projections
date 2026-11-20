@@ -40,6 +40,7 @@ test('GET /space renders the state 1 page with its HUD and the space module', ()
     for (const mesh of ['tetrahedron', 'cube', 'octahedron', 'dodecahedron', 'icosahedron'])
       assert.match(page, new RegExp(`data-mesh="${mesh}"`))
     assert.match(page, /data-mesh="cube" aria-pressed="true"/)
+    assert.match(page, /data-selection="\/selection"/)
     assert.match(page, /<script type="module" src="\/space\/client\/space\.js"><\/script>/)
     // The import map points the browser module at the three.js build this plugin serves.
     assert.match(page, /"three":"\/space\/vendor\/three\.module\.js"/)
@@ -52,6 +53,7 @@ test('the page derives its URLs from the request path, so the frame prefix works
   const page = spacePage('/app/space')
   assert.match(page, /<script type="module" src="\/app\/space\/client\/space\.js"><\/script>/)
   assert.match(page, /"three":"\/app\/space\/vendor\/three\.module\.js"/)
+  assert.match(page, /data-selection="\/app\/selection"/)
   assert.doesNotMatch(page, /"three":"\/space\//)
 })
 

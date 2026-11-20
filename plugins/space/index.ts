@@ -9,10 +9,11 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { Acryl } from '@acryldev/blends'
+import type {} from '../selection/index.ts'
 import { spacePage } from './page.ts'
 
 export const name = 'space'
-export const inject = ['router']
+export const inject = ['router', 'selection']
 
 /** The only files below three's `build/` that are served: the module and the core it re-exports. */
 const THREE_FILES = new Set(['three.module.js', 'three.core.js'])
@@ -64,7 +65,7 @@ export function apply(ctx: Context): void {
   }
 
   const app = new Acryl()
-    .get('/', (c) => c.html(spacePage(c.req.path)))
+    .get('/', (c) => c.html(spacePage(c.req.path, ctx.selection.solid)))
     .get('/client/space.js', (c) => {
       const source = own('./client/space.js')
       return source === undefined

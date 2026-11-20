@@ -37,14 +37,14 @@ test('the state menu lists the app states and marks the page it is on', () =>
     assert.match(page, /padding-top: 46px/)
   }))
 
-test('the Flat state is a page of its own, empty for now, with Flat marked in the menu', () =>
+test('the Flat state is a page of its own, with Flat marked in the menu', () =>
   withApp(async (app) => {
     const response = await app.root.router.request('/flat')
     assert.equal(response.status, 200)
     assert.match(response.headers.get('content-type') ?? '', /html/)
     const page = await response.text()
     assert.match(page, /<h1>Flat<\/h1>/)
-    assert.match(page, /Empty for now\./)
+    assert.match(page, /<figure id="flat-net">/)
     assert.match(page, /<a href="\/space">3D<\/a>/)
     assert.match(page, /<a href="\/flat" aria-current="page">Flat<\/a>/)
   }))

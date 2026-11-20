@@ -2,6 +2,7 @@
  * The page of state 1: a full-viewport 3D space with a HUD over it. Every URL in the document is derived from the request path, so the same page works
  * on the app's own server (`/space`) and under the frame's canvas prefix (`/app/space`) without naming that prefix here.
  */
+import type { Solid } from '../selection/index.ts'
 
 /** The page's own URL, canonical and safe to put into HTML and JSON: `/space`, or `/app/space` in the frame. */
 export function spacePath(requestPath: string): string {
@@ -18,8 +19,11 @@ function importMap(threeUrl: string): string {
 }
 
 /** The page: dark Blender-like viewport, the controls of the HUD, and the module that paints the space. */
-export function spacePage(requestPath: string): string {
+export function spacePage(requestPath: string, solid: Solid = 'cube'): string {
   const base = spacePath(requestPath)
+  // The shared selection lives beside the state pages, under the prefix the app is mounted at.
+  const appBase = base.endsWith('/space') ? base.slice(0, -'/space'.length) : ''
+  const pressed = (mesh: string): string => (mesh === solid ? 'true' : 'false')
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -186,15 +190,15 @@ export function spacePage(requestPath: string): string {
     </style>
   </head>
   <body>
-    <div id="space-root">
+    <div id="space-root" data-selection="${appBase}/selection">
       <canvas id="space-canvas" aria-label="3D space"></canvas>
       <aside id="space-meshes" aria-label="Meshes">
         <h2>Mesh</h2>
-        <button type="button" data-mesh="tetrahedron" aria-pressed="false">Tetrahedron</button>
-        <button type="button" data-mesh="cube" aria-pressed="true" title="Cube (hexahedron)">Cube</button>
-        <button type="button" data-mesh="octahedron" aria-pressed="false">Octahedron</button>
-        <button type="button" data-mesh="dodecahedron" aria-pressed="false">Dodecahedron</button>
-        <button type="button" data-mesh="icosahedron" aria-pressed="false">Icosahedron</button>
+        <button type="button" data-mesh="tetrahedron" aria-pressed="${pressed('tetrahedron')}">Tetrahedron</button>
+        <button type="button" data-mesh="cube" aria-pressed="${pressed('cube')}" title="Cube (hexahedron)">Cube</button>
+        <button type="button" data-mesh="octahedron" aria-pressed="${pressed('octahedron')}">Octahedron</button>
+        <button type="button" data-mesh="dodecahedron" aria-pressed="${pressed('dodecahedron')}">Dodecahedron</button>
+        <button type="button" data-mesh="icosahedron" aria-pressed="${pressed('icosahedron')}">Icosahedron</button>
       </aside>
       <section id="space-hud" aria-label="3D space controls">
         <h1>3D</h1>
