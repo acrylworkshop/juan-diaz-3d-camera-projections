@@ -1,5 +1,5 @@
 /**
- * The state menu: a bar at the top of every state page for switching between them (3D orbit, Images), and the list of states it shows.
+ * The state menu: a bar at the top of every state page for switching between them (3D, Flat), and the list of states it shows.
  *
  * The bar is added to a state page's own HTML as the page leaves the app, so a state plugin owns its page's layout and knows nothing about the menu.
  * A page that is not a state (`/about`, the app's JSON root) is left exactly as it is.

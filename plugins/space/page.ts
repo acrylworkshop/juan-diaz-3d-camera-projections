@@ -25,7 +25,7 @@ export function spacePage(requestPath: string): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>3D orbit</title>
+    <title>3D</title>
     <style>
       :root {
         color-scheme: dark;
@@ -197,7 +197,7 @@ export function spacePage(requestPath: string): string {
         <button type="button" data-mesh="icosahedron" aria-pressed="false">Icosahedron</button>
       </aside>
       <section id="space-hud" aria-label="3D space controls">
-        <h1>3D orbit</h1>
+        <h1>3D</h1>
         <div id="space-views">
           <button type="button" data-view="front">Front</button>
           <button type="button" data-view="right">Right</button>

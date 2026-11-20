@@ -1,15 +1,15 @@
 /**
- * The page of the Images state. It is empty for now: the state exists so the state menu can switch to it, and its content comes later.
+ * The page of the Flat state. It is empty for now: the state exists so the state menu can switch to it, and its content comes later.
  */
 
 /** The page: the same dark ground as the 3D space, and a line saying the state has nothing yet. */
-export function imagesPage(): string {
+export function flatPage(): string {
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Images</title>
+    <title>Flat</title>
     <style>
       :root {
         color-scheme: dark;
@@ -50,8 +50,8 @@ export function imagesPage(): string {
     </style>
   </head>
   <body>
-    <main id="images-state">
-      <h1>Images</h1>
+    <main id="flat-state">
+      <h1>Flat</h1>
       <p>Empty for now.</p>
     </main>
   </body>

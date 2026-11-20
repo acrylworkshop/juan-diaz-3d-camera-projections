@@ -1,7 +1,7 @@
 /**
  * The app's states, as the state menu lists them, and the bar that switches between them.
  *
- * A state is a page of its own, served by its own plugin (3D orbit by `space`, Images by `images`). The bar carries a link to each of them, with the
+ * A state is a page of its own, served by its own plugin (3D by `space`, Flat by `flat`). The bar carries a link to each of them, with the
  * page's own path kept as the app writes it, so it works on the app's own server and under the frame's canvas prefix alike.
  */
 
@@ -14,8 +14,8 @@ export interface AppState {
 
 /** The states, in the order the menu shows them. The first one is the app's main state. */
 export const STATES: readonly AppState[] = [
-  { id: 'orbit', title: '3D orbit', path: '/space' },
-  { id: 'images', title: 'Images', path: '/images' },
+  { id: '3d', title: '3D', path: '/space' },
+  { id: 'flat', title: 'Flat', path: '/flat' },
 ]
 
 export interface LocatedState {
