@@ -1,0 +1,117 @@
+{
+  "formatVersion": 3,
+  "generator": {
+    "name": "@acryldev/blends-core",
+    "version": "0.6.0"
+  },
+  "origin": {
+    "id": "acrylblends.projectionmapping",
+    "kind": "Blueprint",
+    "version": "0.1.0",
+    "digest": "019ecc9d074f60236a74efe924aacd5b23807bef657a67092e2b9cd98188f4a1"
+  },
+  "parameters": {
+    "hostname": "127.0.0.1"
+  },
+  "rows": [
+    {
+      "id": "router",
+      "name": "acryl-router"
+    },
+    {
+      "id": "routes",
+      "name": "routes"
+    },
+    {
+      "id": "space",
+      "name": "space"
+    },
+    {
+      "id": "extensions",
+      "name": "extensions"
+    },
+    {
+      "id": "plugin-share",
+      "name": "plugin-share"
+    },
+    {
+      "id": "server",
+      "name": "acryl-node-server",
+      "config": {
+        "hostname": "127.0.0.1"
+      }
+    },
+    {
+      "id": "acryl-door",
+      "name": "acryl-door"
+    }
+  ],
+  "modules": [
+    {
+      "name": "${name}",
+      "origin": "local",
+      "digest": "sha256:0578476190175ab7cc868190604c1c7ea9609f84a347c86723086577d742fbe3",
+      "source": "plugins/extensions"
+    },
+    {
+      "name": "door",
+      "origin": "local",
+      "digest": "sha256:d2f045133e5891b0f3db8a92ceee45e4d4ddc220f86cb93a2d32059522d7f442",
+      "source": "plugins/door"
+    },
+    {
+      "name": "manifest",
+      "origin": "local",
+      "digest": "sha256:a9fa3e36f001de5087457e690ac5c3b8a43a1f4d4c6f5b0f7759f24d397871f7",
+      "source": "plugins/manifest"
+    },
+    {
+      "name": "node-server",
+      "origin": "local",
+      "digest": "sha256:dde2497ca5ca7246d261ae63a0ecb57774ff1ff613cab176fb36e43c1d434084",
+      "source": "plugins/node-server"
+    },
+    {
+      "name": "page",
+      "origin": "local",
+      "digest": "sha256:1935035c8e1ece435fee2eb6ee61a76aa5ae8b6e7c7035367d45587f1de22686",
+      "source": "plugins/page"
+    },
+    {
+      "name": "plugin-share",
+      "origin": "local",
+      "digest": "sha256:053ac35a9c2b7e7b125e923a65d15136b100efe6aca4b4353178067465d2b43c",
+      "source": "plugins/plugin-share"
+    },
+    {
+      "name": "router",
+      "origin": "local",
+      "digest": "sha256:e6ffcb8813001ec103f37ebeff48dbf6ad607df6269678f5e43bee398eab541b",
+      "source": "plugins/router"
+    },
+    {
+      "name": "sandbox",
+      "origin": "local",
+      "digest": "sha256:18f122689c4e14d278837572cb321a73680747e3c9952a7876f4d66dce826dc4",
+      "source": "plugins/sandbox"
+    },
+    {
+      "name": "save",
+      "origin": "local",
+      "digest": "sha256:592f329f30a9fd6eb4efd63e4c94f98ae600f8ca9a77395ec4411ccca814f25b",
+      "source": "plugins/save"
+    },
+    {
+      "name": "space",
+      "origin": "local",
+      "digest": "sha256:9b24fbf9f1fc7c7ec8a06a46166a0a7def40905a122bf4dcc1806b83289140c6",
+      "source": "plugins/space"
+    },
+    {
+      "name": "web-server",
+      "origin": "local",
+      "digest": "sha256:8aea9216006f128c8a784edb21d701b0fa7f6b427dbe2dff1717bd4d3991eb51",
+      "source": "plugins/web-server"
+    }
+  ]
+}

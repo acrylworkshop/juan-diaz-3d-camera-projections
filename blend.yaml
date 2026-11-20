@@ -17,6 +17,9 @@ spec:
       name: acryl-router
     - id: routes
       name: routes
+    # The app's first state: a Blender-like three.js space you can orbit, pan and zoom in, with painted X, Y and Z axes. Page: /space.
+    - id: space
+      name: space
     # Plugin folders without a row of their own (a live install with the door's `plugin add`); a folder with a row is the app's and starts by it.
     # Read-only when NODE_ENV=production.
     - id: extensions
