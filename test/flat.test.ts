@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import * as THREE from 'three'
 import type { Solid } from '../plugins/selection/index.ts'
-import { netOf, netSvg, verticesOf } from '../plugins/flat/nets.ts'
+import { faceKey, netOf, netSvg, verticesOf } from '../plugins/flat/nets.ts'
 import { flatPage } from '../plugins/flat/page.ts'
 
 /** Each solid: its corners, its faces, and how many sides each face has. */
@@ -79,6 +80,44 @@ test('each solid unfolds into the right number of faces, none on top of another'
   }
 })
 
+/** The face keys the 3D state computes from three's own geometry, so both states name the same face the same way. */
+function threeKeys(solid: Solid): string[] {
+  const raw =
+    solid === 'cube'
+      ? new THREE.BoxGeometry(2.771, 2.771, 2.771)
+      : {
+          tetrahedron: () => new THREE.TetrahedronGeometry(2.4),
+          octahedron: () => new THREE.OctahedronGeometry(2.4),
+          dodecahedron: () => new THREE.DodecahedronGeometry(2.4),
+          icosahedron: () => new THREE.IcosahedronGeometry(2.4),
+        }[solid]()
+  const geometry = raw.index === null ? raw : raw.toNonIndexed()
+  const position = geometry.getAttribute('position')
+  const keys = new Set<string>()
+  const a = new THREE.Vector3()
+  const b = new THREE.Vector3()
+  const c = new THREE.Vector3()
+  for (let start = 0; start < position.count; start += 3) {
+    a.fromBufferAttribute(position, start)
+    b.fromBufferAttribute(position, start + 1)
+    c.fromBufferAttribute(position, start + 2)
+    const normal = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize()
+    const center = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1 / 3)
+    if (normal.dot(center) < 0) normal.negate()
+    keys.add(faceKey([normal.x, normal.y, normal.z]))
+  }
+  return [...keys]
+}
+
+test('the 3D state and the net name every face the same way', () => {
+  for (const solid of solids) {
+    const net = netOf(solid)
+    const rendered = threeKeys(solid)
+    assert.equal(rendered.length, net.keys.length, solid)
+    assert.deepEqual([...rendered].sort(), [...net.keys].sort(), solid)
+  }
+})
+
 test('the net drawing has one polygon per face and a fitted viewBox', () => {
   for (const solid of solids) {
     const svg = netSvg(solid)
@@ -95,9 +134,12 @@ test('the Flat page names the solid and carries its net', () => {
   assert.match(page, /Dodecahedron · unfolded flat/)
   assert.match(page, /<figure id="flat-net">/)
   assert.match(page, /id="flat-camera" aria-pressed="false"/)
+  assert.match(page, /id="flat-randomize"/)
   assert.match(page, /id="flat-net-data"/)
   assert.equal(page.split('<polygon').length - 1, 12)
   const data = JSON.parse(page.slice(page.indexOf('id="flat-net-data">') + 'id="flat-net-data">'.length, page.indexOf('</script>', page.indexOf('id="flat-net-data">'))))
   assert.equal(data.faces.length, 12)
+  assert.equal(data.keys.length, 12)
+  assert.equal(new Set(data.keys).size, 12)
   assert.equal(data.viewBox.length, 4)
 })

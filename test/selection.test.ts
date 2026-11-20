@@ -39,7 +39,7 @@ const choose = (app: App, solid: unknown) =>
 test('the selection starts as the cube and both states show it', () =>
   withApp(async (app) => {
     const selection = await (await app.root.router.request('/selection')).json()
-    assert.deepEqual(selection, { solid: 'cube', camera: false })
+    assert.deepEqual(selection, { solid: 'cube', camera: false, faces: {} })
 
     const space = await (await app.root.router.request('/space')).text()
     assert.match(space, /data-mesh="cube" aria-pressed="true"/)
@@ -54,8 +54,8 @@ test('choosing a solid changes the Flat net and the 3D pressed button', () =>
   withApp(async (app) => {
     const answer = await choose(app, 'icosahedron')
     assert.equal(answer.status, 200)
-    assert.deepEqual(await answer.json(), { solid: 'icosahedron', camera: false })
-    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'icosahedron', camera: false })
+    assert.deepEqual(await answer.json(), { solid: 'icosahedron', camera: false, faces: {} })
+    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'icosahedron', camera: false, faces: {} })
 
     const flat = await (await app.root.router.request('/flat')).text()
     assert.match(flat, /Icosahedron · unfolded flat/)
@@ -74,8 +74,8 @@ test('the camera is shared by both states and starts off', () =>
       body: JSON.stringify({ camera: true }),
     })
     assert.equal(on.status, 200)
-    assert.deepEqual(await on.json(), { solid: 'cube', camera: true })
-    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'cube', camera: true })
+    assert.deepEqual(await on.json(), { solid: 'cube', camera: true, faces: {} })
+    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'cube', camera: true, faces: {} })
 
     const space = await (await app.root.router.request('/space')).text()
     assert.match(space, /data-camera="on"/)
@@ -101,6 +101,46 @@ test('a camera value that is not a boolean is refused', () =>
     assert.equal(empty.status, 400)
   }))
 
+test('face styles are shared, kept per solid, and validated', () =>
+  withApp(async (app) => {
+    const faces = {
+      '1.000,0.000,0.000': { filter: 'hue', hue: 120, orientation: 'right' },
+      '0.000,1.000,0.000': { filter: 'mono', hue: 0, orientation: 'flipV' },
+    }
+    const answer = await app.root.router.request('/selection', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ faces }),
+    })
+    assert.equal(answer.status, 200)
+    assert.deepEqual(await answer.json(), { solid: 'cube', camera: false, faces })
+    assert.deepEqual((await (await app.root.router.request('/selection')).json()).faces, faces)
+
+    // Another solid keeps its own map.
+    assert.equal((await choose(app, 'octahedron')).status, 200)
+    assert.deepEqual((await (await app.root.router.request('/selection')).json()).faces, {})
+    assert.equal((await choose(app, 'cube')).status, 200)
+    assert.deepEqual((await (await app.root.router.request('/selection')).json()).faces, faces)
+
+    const flat = await (await app.root.router.request('/flat')).text()
+    assert.match(flat, /"filter":"hue"/)
+    const space = await (await app.root.router.request('/space')).text()
+    assert.match(space, /id="space-faces"/)
+
+    const wrongFilter = await app.root.router.request('/selection', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ faces: { '1.000,0.000,0.000': { filter: 'blur', hue: 0, orientation: 'none' } } }),
+    })
+    assert.equal(wrongFilter.status, 400)
+    const wrongDirection = await app.root.router.request('/selection', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ faces: { '1.000,0.000,0.000': { filter: 'hue', hue: 0, orientation: 'sideways' } } }),
+    })
+    assert.equal(wrongDirection.status, 400)
+  }))
+
 test('a solid the app does not know is refused and changes nothing', () =>
   withApp(async (app) => {
     assert.equal((await choose(app, 'sphere')).status, 400)
@@ -110,7 +150,7 @@ test('a solid the app does not know is refused and changes nothing', () =>
       body: 'not json',
     })
     assert.equal(malformed.status, 400)
-    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'cube', camera: false })
+    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'cube', camera: false, faces: {} })
   }))
 
 test('the chosen solid survives a restart', async () => {
@@ -130,7 +170,7 @@ test('the chosen solid survives a restart', async () => {
     }
     const second = await boot(home)
     try {
-      assert.deepEqual(await (await second.root.router.request('/selection')).json(), { solid: 'dodecahedron', camera: false })
+      assert.deepEqual(await (await second.root.router.request('/selection')).json(), { solid: 'dodecahedron', camera: false, faces: {} })
       const flat = await (await second.root.router.request('/flat')).text()
       assert.equal(count(flat, '<polygon'), 12)
     } finally {

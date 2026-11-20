@@ -2,7 +2,7 @@
  * The page of state 1: a full-viewport 3D space with a HUD over it. Every URL in the document is derived from the request path, so the same page works
  * on the app's own server (`/space`) and under the frame's canvas prefix (`/app/space`) without naming that prefix here.
  */
-import type { Solid } from '../selection/index.ts'
+import type { FaceStyles, Solid } from '../selection/index.ts'
 
 /** The page's own URL, canonical and safe to put into HTML and JSON: `/space`, or `/app/space` in the frame. */
 export function spacePath(requestPath: string): string {
@@ -19,7 +19,7 @@ function importMap(threeUrl: string): string {
 }
 
 /** The page: dark Blender-like viewport, the controls of the HUD, and the module that paints the space. */
-export function spacePage(requestPath: string, solid: Solid = 'cube', camera = false): string {
+export function spacePage(requestPath: string, solid: Solid = 'cube', camera = false, faces: FaceStyles = {}): string {
   const base = spacePath(requestPath)
   // The shared selection lives beside the state pages, under the prefix the app is mounted at.
   const appBase = base.endsWith('/space') ? base.slice(0, -'/space'.length) : ''
@@ -225,6 +225,7 @@ export function spacePage(requestPath: string, solid: Solid = 'cube', camera = f
           <button type="button" id="space-projection">Perspective</button>
           <button type="button" id="space-frame">Frame</button>
           <button type="button" id="space-camera" aria-pressed="${camera ? 'true' : 'false'}" title="Show the camera on every face">Camera</button>
+          <button type="button" id="space-randomize" title="Pick a random face and one of Hue, Black and white, Sepia, Invert, and give every face a random direction">Randomize</button>
         </div>
         <ul id="space-legend">
           <li><b>Orbit</b> drag with the left or middle button</li>
@@ -232,11 +233,13 @@ export function spacePage(requestPath: string, solid: Solid = 'cube', camera = f
           <li><b>Zoom</b> wheel, or Ctrl + middle drag</li>
           <li><b>Views</b> numpad 1, 3, 7 (Ctrl for the opposite side), 5 toggles orthographic, Home or . frames the space</li>
           <li><b>Gizmo</b> click X, Y or Z at the top right to look along that axis</li>
+          <li><b>Randomize</b> one face gets a random filter from Hue, Black and white, Sepia and Invert, and every face a random direction</li>
         </ul>
       </section>
       <p id="space-status" role="status">Perspective · User view · target 0.00, 0.00, 0.00</p>
       <p id="space-error" role="alert" hidden></p>
     </div>
+    <script type="application/json" id="space-faces">${JSON.stringify(faces).replaceAll('<', '\\u003c')}</script>
     <script type="importmap">${importMap(`${base}/vendor/three.module.js`)}</script>
     <script type="module" src="${base}/client/space.js"></script>
   </body>

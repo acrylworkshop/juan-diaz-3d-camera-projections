@@ -30,6 +30,7 @@ const errorEl = document.getElementById('space-error')
 const projectionButton = document.getElementById('space-projection')
 const frameButton = document.getElementById('space-frame')
 const cameraButton = document.getElementById('space-camera')
+const randomizeButton = document.getElementById('space-randomize')
 const videoElement = document.getElementById('space-video')
 
 /** The six standard sides, as the spherical angles of the camera's position around the pivot. */
@@ -108,19 +109,24 @@ function start(webgl) {
   const selectionUrl = document.getElementById('space-root')?.dataset.selection
   let saving = Promise.resolve()
   function saveShared(body) {
-    if (selectionUrl === undefined || selectionUrl === '') return
-    saving = saving
-      .then(() =>
-        fetch(selectionUrl, {
+    if (selectionUrl === undefined || selectionUrl === '') return Promise.resolve(undefined)
+    const answer = saving.then(async () => {
+      try {
+        const response = await fetch(selectionUrl, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(body),
-        }),
-      )
-      .then(
-        () => undefined,
-        () => undefined,
-      )
+        })
+        return response.ok ? await response.json() : undefined
+      } catch {
+        return undefined
+      }
+    })
+    saving = answer.then(
+      () => undefined,
+      () => undefined,
+    )
+    return answer
   }
 
   // ---- the scene -------------------------------------------------------------------------------------------------
@@ -248,68 +254,75 @@ function start(webgl) {
     return geometry
   }
 
-  /** The solid on the space, standing at the origin. The bar shows one at a time: choosing another replaces it. */
-  let solid = null
+  // ---- the solid and its faces: a filter, a hue and a direction for each ---------------------------------------
 
-  function showSolid(name) {
-    const create = SOLIDS[name]
-    if (create === undefined) return
-    if (solid !== null) {
-      scene.remove(solid)
-      solid.traverse((child) => {
-        if (child.geometry !== undefined) child.geometry.dispose()
-        if (child.material !== undefined) child.material.dispose()
-      })
-      solid = null
+  const FILTER_INDEX = { none: 0, hue: 1, mono: 2, sepia: 3, invert: 4 }
+  const RANDOM_FILTERS = ['hue', 'mono', 'sepia', 'invert']
+  const RANDOM_ORIENTATIONS = ['none', 'flipV', 'right', 'left']
+  const PLAIN_FACE = { filter: 'none', hue: 0, orientation: 'none' }
+
+  /** The feed with the per-face filter, read from the aFilter and aHue attributes. */
+  const CAMERA_VERTEX = `
+    attribute float aFilter;
+    attribute float aHue;
+    varying vec2 vUv;
+    varying float vFilter;
+    varying float vHue;
+    void main() {
+      vUv = uv;
+      vFilter = aFilter;
+      vHue = aHue;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`
+  const CAMERA_FRAGMENT = `
+    uniform sampler2D map;
+    varying vec2 vUv;
+    varying float vFilter;
+    varying float vHue;
+    vec3 hueShift(vec3 color, float angle) {
+      const vec3 axis = vec3(0.577350269189626);
+      float c = cos(angle);
+      float s = sin(angle);
+      return color * c + cross(axis, color) * s + axis * dot(axis, color) * (1.0 - c);
     }
-    const geometry = withFaceUvs(standingGeometry(create()), videoAspect())
-    const mesh = new THREE.Mesh(
-      geometry,
-      new THREE.MeshStandardMaterial({
-        color: cameraOn && videoTexture !== null ? 0xffffff : 0xb9bfc6,
-        roughness: 0.55,
-        metalness: 0.05,
-        flatShading: true,
-        map: cameraOn ? videoTexture : null,
-      }),
-    )
-    // The edges of the facets, so a projection surface reads as separate faces from any angle.
-    mesh.add(
-      new THREE.LineSegments(
-        new THREE.EdgesGeometry(geometry, 25),
-        new THREE.LineBasicMaterial({ color: 0x77808a }),
-      ),
-    )
-    solid = mesh
-    scene.add(mesh)
-    for (const button of document.querySelectorAll('[data-mesh]')) {
-      button.setAttribute('aria-pressed', String(button.dataset.mesh === name))
+    void main() {
+      vec3 color = texture2D(map, vUv).rgb;
+      int kind = int(vFilter + 0.5);
+      if (kind == 1) color = hueShift(color, vHue);
+      else if (kind == 2) color = vec3(dot(color, vec3(0.299, 0.587, 0.114)));
+      else if (kind == 3) color = vec3(
+        dot(color, vec3(0.393, 0.769, 0.189)),
+        dot(color, vec3(0.349, 0.686, 0.168)),
+        dot(color, vec3(0.272, 0.534, 0.131)));
+      else if (kind == 4) color = vec3(1.0) - color;
+      gl_FragColor = vec4(color, 1.0);
+    }`
+
+  /** A face's outward normal as its name, the same rounding the net uses. */
+  function faceKey(normal) {
+    const part = (value) => {
+      const rounded = Math.round(value * 1000) / 1000
+      return (Object.is(rounded, -0) ? 0 : rounded).toFixed(3)
     }
-    requestRender()
+    return `${part(normal.x)},${part(normal.y)},${part(normal.z)}`
   }
 
-
-  // ---- the camera: the live feed on every face ----------------------------------------------------------------
-
-  let cameraStream = null
-  let video = null
-  let videoTexture = null
-  let cameraOn = false
-
-  function videoAspect() {
-    return video !== null && video.videoWidth > 0 ? video.videoWidth / video.videoHeight : 16 / 9
+  /** The face's own square turned as the style asks: vertical flip, or 90 degrees each way. */
+  function orientUv(x, y, orientation) {
+    if (orientation === 'flipV') return [x, 1 - y]
+    if (orientation === 'right') return [1 - y, x]
+    if (orientation === 'left') return [y, 1 - x]
+    return [x, y]
   }
 
-  /**
-   * The camera frame on every face. Each facet's corners get UVs onto the whole frame, cropped to the face's own shape (cover), with the face's
-   * up kept toward world up so the frame does not land upside down. Triangles are grouped by their plane, so a square face is one group and a
-   * pentagon's triangles share one group.
-   */
-  function withFaceUvs(geometry, aspect) {
-    const flat = geometry.index === null ? geometry : geometry.toNonIndexed()
-    if (flat !== geometry) geometry.dispose()
+  /** One solid's geometry: triangles grouped by face, each face's UVs onto the whole frame, and its filter attributes. */
+  function buildSolid(raw, aspect) {
+    const flat = raw.index === null ? raw : raw.toNonIndexed()
+    if (flat !== raw) raw.dispose()
     const position = flat.getAttribute('position')
     const uv = new Float32Array(position.count * 2)
+    const filters = new Float32Array(position.count)
+    const hues = new Float32Array(position.count)
     const groups = new Map()
     const a = new THREE.Vector3()
     const b = new THREE.Vector3()
@@ -321,10 +334,12 @@ function start(webgl) {
       const normal = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a))
       if (normal.lengthSq() < 1e-12) continue
       normal.normalize()
-      const key = `${normal.x.toFixed(3)},${normal.y.toFixed(3)},${normal.z.toFixed(3)},${normal.dot(a).toFixed(3)}`
+      const center = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1 / 3)
+      if (normal.dot(center) < 0) normal.negate()
+      const key = faceKey(normal)
       let group = groups.get(key)
       if (group === undefined) {
-        group = { normal, triangles: [] }
+        group = { key, normal, triangles: [] }
         groups.set(key, group)
       }
       group.triangles.push(start)
@@ -357,42 +372,109 @@ function start(webgl) {
       const width = Math.max(maxX - minX, 1e-6)
       const height = Math.max(maxY - minY, 1e-6)
       const faceAspect = width / height
-      const scaleX = faceAspect > aspect ? 1 : faceAspect / aspect
-      const scaleY = faceAspect > aspect ? aspect / faceAspect : 1
+      const style = faceStyles[group.key] ?? PLAIN_FACE
+      const turned = style.orientation === 'right' || style.orientation === 'left'
+      const shownAspect = turned ? 1 / faceAspect : faceAspect
+      const scaleX = shownAspect > aspect ? 1 : shownAspect / aspect
+      const scaleY = shownAspect > aspect ? aspect / shownAspect : 1
+      const filterIndex = FILTER_INDEX[style.filter] ?? 0
+      const hue = (typeof style.hue === 'number' ? style.hue : 0) * (Math.PI / 180)
       for (const start of group.triangles) {
         for (let cornerIndex = 0; cornerIndex < 3; cornerIndex += 1) {
           corner.fromBufferAttribute(position, start + cornerIndex)
           const x = (corner.dot(right) - minX) / width
           const y = (corner.dot(up) - minY) / height
-          uv[(start + cornerIndex) * 2] = 0.5 + (x - 0.5) * scaleX
-          uv[(start + cornerIndex) * 2 + 1] = 0.5 + (y - 0.5) * scaleY
+          const [ox, oy] = orientUv(x, y, style.orientation)
+          uv[(start + cornerIndex) * 2] = 0.5 + (ox - 0.5) * scaleX
+          uv[(start + cornerIndex) * 2 + 1] = 0.5 + (oy - 0.5) * scaleY
+          filters[start + cornerIndex] = filterIndex
+          hues[start + cornerIndex] = hue
         }
       }
     }
     flat.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
-    return flat
+    flat.setAttribute('aFilter', new THREE.BufferAttribute(filters, 1))
+    flat.setAttribute('aHue', new THREE.BufferAttribute(hues, 1))
+    standingGeometry(flat)
+    return { geometry: flat, keys: [...groups.keys()] }
   }
 
-  /** Put the live frame on the current solid, with the UVs of the video's real shape. */
-  function applyCameraTexture() {
-    if (solid === null || videoTexture === null) return
-    const next = withFaceUvs(solid.geometry, videoAspect())
-    if (next !== solid.geometry) {
-      solid.geometry.dispose()
-      solid.geometry = next
+  /** The solid on the space, standing at the origin. The bar shows one at a time: choosing another replaces it. */
+  let solid = null
+  let faceKeys = []
+  let faceStyles = {}
+  let currentSolid = 'cube'
+
+  function showSolid(name) {
+    const create = SOLIDS[name]
+    if (create === undefined) return
+    currentSolid = name
+    if (solid !== null) {
+      scene.remove(solid)
+      solid.traverse((child) => {
+        if (child.geometry !== undefined) child.geometry.dispose()
+        if (child.material !== undefined) child.material.dispose()
+      })
+      solid = null
     }
-    solid.material.map = videoTexture
-    solid.material.color.set(0xffffff)
-    solid.material.needsUpdate = true
+    const built = buildSolid(create(), videoAspect())
+    faceKeys = built.keys
+    const geometry = built.geometry
+    const material =
+      cameraOn && videoTexture !== null
+        ? new THREE.ShaderMaterial({
+            uniforms: { map: { value: videoTexture } },
+            vertexShader: CAMERA_VERTEX,
+            fragmentShader: CAMERA_FRAGMENT,
+          })
+        : new THREE.MeshStandardMaterial({ color: 0xb9bfc6, roughness: 0.55, metalness: 0.05, flatShading: true })
+    const mesh = new THREE.Mesh(geometry, material)
+    // The edges of the facets, so a projection surface reads as separate faces from any angle.
+    mesh.add(
+      new THREE.LineSegments(
+        new THREE.EdgesGeometry(geometry, 25),
+        new THREE.LineBasicMaterial({ color: 0x77808a }),
+      ),
+    )
+    solid = mesh
+    scene.add(mesh)
+    for (const button of document.querySelectorAll('[data-mesh]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.mesh === name))
+    }
     requestRender()
   }
 
-  function clearCameraTexture() {
-    if (solid === null) return
-    solid.material.map = null
-    solid.material.color.set(0xb9bfc6)
-    solid.material.needsUpdate = true
-    requestRender()
+  /** One random face gets a random filter, and every face gets a random direction. Shared with the Flat state. */
+  function randomizeFaces() {
+    if (faceKeys.length === 0) return
+    const next = {}
+    for (const key of faceKeys) {
+      const current = faceStyles[key] ?? PLAIN_FACE
+      next[key] = {
+        ...current,
+        orientation: RANDOM_ORIENTATIONS[Math.floor(Math.random() * RANDOM_ORIENTATIONS.length)],
+      }
+    }
+    const key = faceKeys[Math.floor(Math.random() * faceKeys.length)]
+    next[key] = {
+      ...next[key],
+      filter: RANDOM_FILTERS[Math.floor(Math.random() * RANDOM_FILTERS.length)],
+      hue: Math.floor(Math.random() * 360),
+    }
+    faceStyles = next
+    showSolid(currentSolid)
+    saveShared({ faces: next })
+  }
+
+  // ---- the camera: the live feed on every face ----------------------------------------------------------------
+
+  let cameraStream = null
+  let video = null
+  let videoTexture = null
+  let cameraOn = false
+
+  function videoAspect() {
+    return video !== null && video.videoWidth > 0 ? video.videoWidth / video.videoHeight : 16 / 9
   }
 
   function stopCamera(save = true) {
@@ -409,7 +491,7 @@ function start(webgl) {
     }
     cameraOn = false
     cameraButton.setAttribute('aria-pressed', 'false')
-    clearCameraTexture()
+    if (solid !== null) showSolid(currentSolid)
     if (save) saveShared({ camera: false })
   }
 
@@ -428,13 +510,12 @@ function start(webgl) {
       video.srcObject = cameraStream
       await video.play()
       videoTexture = new THREE.VideoTexture(video)
-      videoTexture.colorSpace = THREE.SRGBColorSpace
       videoTexture.minFilter = THREE.LinearFilter
       videoTexture.magFilter = THREE.LinearFilter
-      video.addEventListener('loadedmetadata', applyCameraTexture)
+      video.addEventListener('loadedmetadata', () => showSolid(currentSolid))
       cameraOn = true
       cameraButton.setAttribute('aria-pressed', 'true')
-      applyCameraTexture()
+      showSolid(currentSolid)
       saveShared({ camera: true })
     } catch (error) {
       stopCamera()
@@ -762,13 +843,26 @@ function start(webgl) {
   // The choice is shared with the Flat state, which draws the same solid unfolded.
   for (const button of document.querySelectorAll('[data-mesh]')) {
     button.addEventListener('click', () => {
-      showSolid(button.dataset.mesh)
-      saveShared({ solid: button.dataset.mesh })
+      const name = button.dataset.mesh
+      currentSolid = name
+      faceStyles = {}
+      showSolid(name)
+      saveShared({ solid: name }).then((answer) => {
+        if (answer === undefined || answer.solid !== name) return
+        faceStyles = answer.faces ?? {}
+        if (currentSolid === name) showSolid(name)
+      })
     })
   }
   cameraButton.addEventListener('click', toggleCamera)
-  // The page comes with the shared selection already pressed.
+  randomizeButton.addEventListener('click', randomizeFaces)
+  // The page comes with the shared selection and its face styles already in it.
   const chosen = document.querySelector('[data-mesh][aria-pressed="true"]')?.dataset.mesh
+  try {
+    faceStyles = JSON.parse(document.getElementById('space-faces').textContent)
+  } catch {
+    faceStyles = {}
+  }
   showSolid(chosen ?? 'cube')
 
   new ResizeObserver(resize).observe(canvas)

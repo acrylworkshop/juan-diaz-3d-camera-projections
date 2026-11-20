@@ -230,9 +230,20 @@ const centroidOf = (points: readonly Point[]): Point => ({
   y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
 })
 
+/** A face's outward normal as a stable name: `x,y,z`, each to three places with no negative zero. */
+export const faceKey = (normal: Vec3): string => {
+  const part = (value: number): string => {
+    const rounded = Math.round(value * 1000) / 1000
+    return (Object.is(rounded, -0) ? 0 : rounded).toFixed(3)
+  }
+  return `${part(normal[0])},${part(normal[1])},${part(normal[2])}`
+}
+
 export interface Net {
   /** One polygon per face, in the flat sheet's own coordinates. */
   readonly faces: Point[][]
+  /** Each face's outward normal, in the same order as `faces`: the key the 3D state uses for the same face. */
+  readonly keys: string[]
   /** A dot on the base face, the way the reference marks the sheet it starts from. */
   readonly dot: Point
   readonly minX: number
@@ -311,7 +322,15 @@ export function netOf(solid: Solid): Net {
   const minY = Math.min(...corners.map((point) => point.y))
   const width = Math.max(...corners.map((point) => point.x)) - minX
   const height = Math.max(...corners.map((point) => point.y)) - minY
-  const net: Net = { faces: sheet, dot: turned(centroidOf(placed[0])), minX, minY, width, height }
+  const net: Net = {
+    faces: sheet,
+    keys: faces.map((face) => faceKey(face.normal)),
+    dot: turned(centroidOf(placed[0])),
+    minX,
+    minY,
+    width,
+    height,
+  }
   nets.set(solid, net)
   return net
 }

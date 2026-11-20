@@ -4,7 +4,7 @@
  * The sheet is drawn as SVG. With the camera on, a canvas over it draws the same faces with the live frame on each one; the SVG stays as the
  * paper the state shows when the camera is off.
  */
-import type { Solid } from '../selection/index.ts'
+import type { FaceStyles, Solid } from '../selection/index.ts'
 import { netDotRadius, netOf, netSvg, netViewBox } from './nets.ts'
 
 const NAMES: Record<Solid, string> = {
@@ -22,12 +22,13 @@ function netData(solid: Solid): string {
   return JSON.stringify({
     viewBox: netViewBox(net).map(round),
     faces: net.faces.map((face) => face.map((point) => [round(point.x), round(point.y)])),
+    keys: net.keys,
     dot: { x: round(net.dot.x), y: round(net.dot.y), r: round(netDotRadius(net)) },
   }).replaceAll('<', '\\u003c')
 }
 
 /** The page: the net on dark ground, with the state, the solid, and the camera toggle above it. */
-export function flatPage(requestPath: string, solid: Solid = 'cube', camera = false): string {
+export function flatPage(requestPath: string, solid: Solid = 'cube', camera = false, faces: FaceStyles = {}): string {
   const name = NAMES[solid]
   const page = `/${requestPath
     .split('/')
@@ -107,6 +108,23 @@ export function flatPage(requestPath: string, solid: Solid = 'cube', camera = fa
         border-color: #37506e;
         color: #ffffff;
       }
+      #flat-randomize {
+        padding: 4px 10px;
+        font: inherit;
+        font-size: 12px;
+        color: #dcdcdc;
+        background: #2a2a2a;
+        border: 1px solid #3c3c3c;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      #flat-randomize:hover {
+        background: #343434;
+      }
+      #flat-randomize:focus-visible {
+        outline: 2px solid #3b82f6;
+        outline-offset: 1px;
+      }
       #flat-net {
         display: grid;
         flex: 1;
@@ -167,6 +185,7 @@ export function flatPage(requestPath: string, solid: Solid = 'cube', camera = fa
         <h1>Flat</h1>
         <p id="flat-solid">${name} · unfolded flat</p>
         <button type="button" id="flat-camera" aria-pressed="${camera ? 'true' : 'false'}" title="Show the camera on every face">Camera</button>
+        <button type="button" id="flat-randomize" title="Pick a random face and one of Hue, Black and white, Sepia, Invert, and give every face a random direction">Randomize</button>
       </header>
       <video id="flat-video" playsinline muted aria-hidden="true"></video>
       <figure id="flat-net">
@@ -176,6 +195,7 @@ export function flatPage(requestPath: string, solid: Solid = 'cube', camera = fa
       <p id="flat-error" role="alert" hidden></p>
     </main>
     <script type="application/json" id="flat-net-data">${netData(solid)}</script>
+    <script type="application/json" id="flat-faces">${JSON.stringify(faces).replaceAll('<', '\\u003c')}</script>
     <script type="module">
       const state = document.getElementById('flat-state')
       const figure = document.getElementById('flat-net')
@@ -183,8 +203,36 @@ export function flatPage(requestPath: string, solid: Solid = 'cube', camera = fa
       const canvas = document.getElementById('flat-canvas')
       const error = document.getElementById('flat-error')
       const net = JSON.parse(document.getElementById('flat-net-data').textContent)
+      let styles = JSON.parse(document.getElementById('flat-faces').textContent)
       const context = canvas.getContext('2d')
       const videoElement = document.getElementById('flat-video')
+      const randomizeButton = document.getElementById('flat-randomize')
+      const PLAIN = { filter: 'none', hue: 0, orientation: 'none' }
+      const RANDOM_FILTERS = ['hue', 'mono', 'sepia', 'invert']
+      const RANDOM_ORIENTATIONS = ['none', 'flipV', 'right', 'left']
+      const pick = (list) => list[Math.floor(Math.random() * list.length)]
+
+      function filterOf(style) {
+        if (style.filter === 'hue') return 'hue-rotate(' + style.hue + 'deg)'
+        if (style.filter === 'mono') return 'grayscale(1)'
+        if (style.filter === 'sepia') return 'sepia(0.85)'
+        if (style.filter === 'invert') return 'invert(1)'
+        return 'none'
+      }
+
+      function randomize() {
+        if (net.keys.length === 0) return
+        const next = {}
+        for (const key of net.keys) {
+          const current = styles[key] ?? PLAIN
+          next[key] = { ...current, orientation: pick(RANDOM_ORIENTATIONS) }
+        }
+        const key = pick(net.keys)
+        next[key] = { ...next[key], filter: pick(RANDOM_FILTERS), hue: Math.floor(Math.random() * 360) }
+        styles = next
+        if (on) draw()
+        save({ faces: next })
+      }
       const selectionUrl = state.dataset.selection
       let stream = null
       let video = null
@@ -251,8 +299,10 @@ export function flatPage(requestPath: string, solid: Solid = 'cube', camera = fa
         if (video === null || video.readyState < 2 || canvas.width === 0) return
         const place = placement()
         context.clearRect(0, 0, canvas.width, canvas.height)
-        // Every face shows the whole frame, cropped to the face's own shape.
-        for (const face of net.faces) {
+        // Every face shows the whole frame, cropped to the face's shape, with its own filter and direction.
+        for (let index = 0; index < net.faces.length; index += 1) {
+          const face = net.faces[index]
+          const style = styles[net.keys[index]] ?? PLAIN
           const path = facePath(face, place)
           let minX = Infinity
           let maxX = -Infinity
@@ -268,20 +318,22 @@ export function flatPage(requestPath: string, solid: Solid = 'cube', camera = fa
           }
           const boxWidth = Math.max(maxX - minX, 1)
           const boxHeight = Math.max(maxY - minY, 1)
+          const turned = style.orientation === 'right' || style.orientation === 'left'
           const videoWidth = video.videoWidth || 16
           const videoHeight = video.videoHeight || 9
-          const cover = Math.max(boxWidth / videoWidth, boxHeight / videoHeight)
+          const faceWidth = turned ? boxHeight : boxWidth
+          const faceHeight = turned ? boxWidth : boxHeight
+          const cover = Math.max(faceWidth / videoWidth, faceHeight / videoHeight)
           const drawWidth = videoWidth * cover
           const drawHeight = videoHeight * cover
           context.save()
           context.clip(path)
-          context.drawImage(
-            video,
-            minX + (boxWidth - drawWidth) / 2,
-            minY + (boxHeight - drawHeight) / 2,
-            drawWidth,
-            drawHeight,
-          )
+          context.translate(minX + boxWidth / 2, minY + boxHeight / 2)
+          if (style.orientation === 'flipV') context.scale(1, -1)
+          else if (style.orientation === 'right') context.rotate(Math.PI / 2)
+          else if (style.orientation === 'left') context.rotate(-Math.PI / 2)
+          context.filter = filterOf(style)
+          context.drawImage(video, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
           context.restore()
         }
         context.strokeStyle = '#1a1a1a'
@@ -341,6 +393,7 @@ export function flatPage(requestPath: string, solid: Solid = 'cube', camera = fa
         if (on) stop()
         else void start()
       })
+      randomizeButton.addEventListener('click', randomize)
       new ResizeObserver(() => {
         if (on) fit()
       }).observe(figure)

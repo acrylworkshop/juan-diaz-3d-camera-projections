@@ -42,6 +42,8 @@ test('GET /space renders the state 1 page with its HUD and the space module', ()
     assert.match(page, /data-mesh="cube" aria-pressed="true"/)
     assert.match(page, /data-selection="\/selection"/)
     assert.match(page, /id="space-camera" aria-pressed="false"/)
+    assert.match(page, /id="space-randomize"/)
+    assert.match(page, /id="space-faces"/)
     assert.match(page, /<script type="module" src="\/space\/client\/space\.js"><\/script>/)
     // The import map points the browser module at the three.js build this plugin serves.
     assert.match(page, /"three":"\/space\/vendor\/three\.module\.js"/)

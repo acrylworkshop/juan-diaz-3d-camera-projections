@@ -8,6 +8,6 @@ export const name = 'flat'
 export const inject = ['router', 'selection']
 
 export function apply(ctx: Context): void {
-  const app = new Acryl().get('/', (c) => c.html(flatPage(c.req.path, ctx.selection.solid, ctx.selection.camera)))
+  const app = new Acryl().get('/', (c) => c.html(flatPage(c.req.path, ctx.selection.solid, ctx.selection.camera, ctx.selection.faces)))
   ctx.router.route('/flat', app)
 }
