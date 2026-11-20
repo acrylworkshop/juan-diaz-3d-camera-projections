@@ -1,6 +1,7 @@
 /**
- * State 1: the 3D space. Draws a Blender-flavored Z-up world in three.js (grid, painted axes, nav gizmo) and gives it Blender's navigation:
- * middle drag orbits, Shift + middle drag pans, the wheel and Ctrl + middle drag zoom, and the numpad points the view at the standard sides.
+ * State 1: the 3D space. Draws a Blender-flavored Z-up world in three.js (grid, painted axes, nav gizmo) and lets the pointer grab it:
+ * drag with the left or middle button to orbit, Shift + drag to pan, the wheel or Ctrl + middle drag to zoom, and the numpad points the view at
+ * the standard sides.
  *
  * Plain JavaScript on purpose: the browser gets this file unchanged, so it needs no compile step and no type declarations for three.
  */
@@ -421,21 +422,20 @@ function start(webgl) {
   }
 
   canvas.addEventListener('pointerdown', (event) => {
-    const withAlt = event.altKey
-    const allowed = event.button === 1 || (event.button === 0 && withAlt)
+    // Left and middle drag both grab the space; a right drag stays free for a context menu in a later state.
+    if (event.button !== 0 && event.button !== 1) return
     if (inGizmo(event)) {
       const target = gizmoUnder(event)
       if (target !== undefined) {
         goTo(target)
         return
       }
-      if (!allowed) return
-    } else if (!allowed) {
-      return // the left button stays free for selecting in a later state
     }
     event.preventDefault()
     canvas.setPointerCapture(event.pointerId)
-    const mode = event.shiftKey ? 'pan' : event.ctrlKey || event.metaKey ? 'zoom' : 'orbit'
+    // Shift drags pan, Ctrl with the middle button zooms (Blender's dolly); everything else orbits, so holding the plain left button grabs the space.
+    const mode =
+      event.button === 1 && (event.ctrlKey || event.metaKey) ? 'zoom' : event.shiftKey ? 'pan' : 'orbit'
     drag = { mode, x: event.clientX, y: event.clientY }
   })
 

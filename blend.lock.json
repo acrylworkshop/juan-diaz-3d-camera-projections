@@ -104,7 +104,7 @@
     {
       "name": "space",
       "origin": "local",
-      "digest": "sha256:9b24fbf9f1fc7c7ec8a06a46166a0a7def40905a122bf4dcc1806b83289140c6",
+      "digest": "sha256:5019d97b8cf5f3921c2864d3c6326646a4061d6b7b7fe591c8d9052246c14604",
       "source": "plugins/space"
     },
     {

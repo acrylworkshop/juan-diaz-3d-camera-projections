@@ -157,8 +157,8 @@ export function spacePage(requestPath: string): string {
           <button type="button" id="space-frame">Frame</button>
         </div>
         <ul id="space-legend">
-          <li><b>Orbit</b> middle drag, or Alt + left drag</li>
-          <li><b>Pan</b> Shift + middle drag, or Shift + Alt + left drag</li>
+          <li><b>Orbit</b> drag with the left or middle button</li>
+          <li><b>Pan</b> Shift + drag</li>
           <li><b>Zoom</b> wheel, or Ctrl + middle drag</li>
           <li><b>Views</b> numpad 1, 3, 7 (Ctrl for the opposite side), 5 toggles orthographic, Home or . frames the space</li>
           <li><b>Gizmo</b> click X, Y or Z at the top right to look along that axis</li>
