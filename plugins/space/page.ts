@@ -25,7 +25,7 @@ export function spacePage(requestPath: string): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>State 1 · 3D space</title>
+    <title>3D orbit</title>
     <style>
       :root {
         color-scheme: dark;
@@ -145,7 +145,7 @@ export function spacePage(requestPath: string): string {
     <div id="space-root">
       <canvas id="space-canvas" aria-label="3D space"></canvas>
       <section id="space-hud" aria-label="3D space controls">
-        <h1>State 1 · 3D space</h1>
+        <h1>3D orbit</h1>
         <div id="space-views">
           <button type="button" data-view="front">Front</button>
           <button type="button" data-view="right">Right</button>

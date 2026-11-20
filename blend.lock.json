@@ -8,7 +8,7 @@
     "id": "acrylblends.projectionmapping",
     "kind": "Blueprint",
     "version": "0.1.0",
-    "digest": "019ecc9d074f60236a74efe924aacd5b23807bef657a67092e2b9cd98188f4a1"
+    "digest": "69e96fbd33235d7621fd5a2ec33740ad5b7f28ff269b28f0bd6ce49fe7e6b3b8"
   },
   "parameters": {
     "hostname": "127.0.0.1"
@@ -25,6 +25,14 @@
     {
       "id": "space",
       "name": "space"
+    },
+    {
+      "id": "states",
+      "name": "states"
+    },
+    {
+      "id": "images",
+      "name": "images"
     },
     {
       "id": "extensions",
@@ -58,6 +66,12 @@
       "origin": "local",
       "digest": "sha256:d2f045133e5891b0f3db8a92ceee45e4d4ddc220f86cb93a2d32059522d7f442",
       "source": "plugins/door"
+    },
+    {
+      "name": "images",
+      "origin": "local",
+      "digest": "sha256:fd825f720fda7f41af9359babe6104211db9c6d74b635608a57799c42fee41db",
+      "source": "plugins/images"
     },
     {
       "name": "manifest",
@@ -104,8 +118,14 @@
     {
       "name": "space",
       "origin": "local",
-      "digest": "sha256:5019d97b8cf5f3921c2864d3c6326646a4061d6b7b7fe591c8d9052246c14604",
+      "digest": "sha256:da64c1b4f6f1eb38854894f5354a483cb67a7c51f084b4d6fe07f108383d8cc1",
       "source": "plugins/space"
+    },
+    {
+      "name": "states",
+      "origin": "local",
+      "digest": "sha256:c7e32de50240f79aced5081ec0bc4cfb0a0e24ca8f74c2b0500cad5177f33c66",
+      "source": "plugins/states"
     },
     {
       "name": "web-server",
