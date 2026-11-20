@@ -35,6 +35,11 @@ test('GET /space renders the state 1 page with its HUD and the space module', ()
     assert.match(page, /<canvas id="space-canvas"/)
     assert.match(page, /data-view="front"/)
     assert.match(page, /data-view="top"/)
+    // The vertical mesh bar: one button per solid, the cube chosen at the start.
+    assert.match(page, /<aside id="space-meshes" aria-label="Meshes">/)
+    for (const mesh of ['tetrahedron', 'cube', 'octahedron', 'dodecahedron', 'icosahedron'])
+      assert.match(page, new RegExp(`data-mesh="${mesh}"`))
+    assert.match(page, /data-mesh="cube" aria-pressed="true"/)
     assert.match(page, /<script type="module" src="\/space\/client\/space\.js"><\/script>/)
     // The import map points the browser module at the three.js build this plugin serves.
     assert.match(page, /"three":"\/space\/vendor\/three\.module\.js"/)

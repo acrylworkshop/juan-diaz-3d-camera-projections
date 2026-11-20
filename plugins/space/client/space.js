@@ -76,7 +76,7 @@ function start(webgl) {
 
   const scene = new THREE.Scene()
   scene.background = new THREE.Color(0x1d1d1d)
-  scene.add(makeGrid(), makeAxes(), makeReferenceCube())
+  scene.add(makeGrid(), makeAxes(), makeLights())
 
   const perspective = new THREE.PerspectiveCamera(50, 1, 0.01, 1000)
   const orthographic = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 2000)
@@ -190,14 +190,75 @@ function start(webgl) {
     return new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }))
   }
 
-  /** One meter of reference, standing on the grid at the origin like a projection surface. */
-  function makeReferenceCube() {
-    const cube = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
-      new THREE.LineBasicMaterial({ color: 0x9a9a9a, transparent: true, opacity: 0.85 }),
+  /** Light for the solid the mesh bar adds: a soft sky light and a key from above, so its facets read from any side. */
+  function makeLights() {
+    const lights = new THREE.Group()
+    lights.add(new THREE.HemisphereLight(0xffffff, 0x2f2f2f, 1.1))
+    const key = new THREE.DirectionalLight(0xffffff, 1.6)
+    key.position.set(5, -7, 10)
+    const fill = new THREE.DirectionalLight(0xffffff, 0.5)
+    fill.position.set(-7, 5, 3)
+    lights.add(key, fill)
+    return lights
+  }
+
+  /** The five Platonic solids the mesh bar offers, all with the same circumradius so they read at a similar size. */
+  const SOLIDS = {
+    tetrahedron: () => new THREE.TetrahedronGeometry(2.4),
+    cube: () => new THREE.BoxGeometry(2.771, 2.771, 2.771),
+    octahedron: () => new THREE.OctahedronGeometry(2.4),
+    dodecahedron: () => new THREE.DodecahedronGeometry(2.4),
+    icosahedron: () => new THREE.IcosahedronGeometry(2.4),
+  }
+
+  /** Turn a solid so one of its faces lies flat, and rest it on the grid. A projection target stands on the floor, not half inside it. */
+  function standingGeometry(geometry) {
+    const position = geometry.getAttribute('position')
+    if (position !== undefined && position.count >= 3) {
+      const a = new THREE.Vector3().fromBufferAttribute(position, 0)
+      const b = new THREE.Vector3().fromBufferAttribute(position, 1)
+      const c = new THREE.Vector3().fromBufferAttribute(position, 2)
+      const normal = b.sub(a).cross(c.sub(a)).normalize()
+      if (normal.dot(a) < 0) normal.negate()
+      geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(normal, new THREE.Vector3(0, 0, -1)))
+    }
+    geometry.computeBoundingBox()
+    geometry.translate(0, 0, -(geometry.boundingBox?.min.z ?? 0))
+    return geometry
+  }
+
+  /** The solid on the space, standing at the origin. The bar shows one at a time: choosing another replaces it. */
+  let solid = null
+
+  function showSolid(name) {
+    const create = SOLIDS[name]
+    if (create === undefined) return
+    if (solid !== null) {
+      scene.remove(solid)
+      solid.traverse((child) => {
+        if (child.geometry !== undefined) child.geometry.dispose()
+        if (child.material !== undefined) child.material.dispose()
+      })
+      solid = null
+    }
+    const geometry = standingGeometry(create())
+    const mesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshStandardMaterial({ color: 0xb9bfc6, roughness: 0.55, metalness: 0.05, flatShading: true }),
     )
-    cube.position.set(0, 0, 0.5)
-    return cube
+    // The edges of the facets, so a projection surface reads as separate faces from any angle.
+    mesh.add(
+      new THREE.LineSegments(
+        new THREE.EdgesGeometry(geometry, 25),
+        new THREE.LineBasicMaterial({ color: 0x77808a }),
+      ),
+    )
+    solid = mesh
+    scene.add(mesh)
+    for (const button of document.querySelectorAll('[data-mesh]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.mesh === name))
+    }
+    requestRender()
   }
 
   /** The top right navigation gizmo: an X, Y and Z ball that follows the view, each one a shortcut to look along its axis. */
@@ -510,6 +571,10 @@ function start(webgl) {
   }
   projectionButton.addEventListener('click', toggleProjection)
   frameButton.addEventListener('click', frame)
+  for (const button of document.querySelectorAll('[data-mesh]')) {
+    button.addEventListener('click', () => showSolid(button.dataset.mesh))
+  }
+  showSolid('cube')
 
   new ResizeObserver(resize).observe(canvas)
   canvas.addEventListener('webglcontextlost', (event) => {

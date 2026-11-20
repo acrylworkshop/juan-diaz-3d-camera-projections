@@ -61,11 +61,55 @@ export function spacePage(requestPath: string): string {
       #space-canvas:active {
         cursor: grabbing;
       }
-      #space-hud {
+      #space-meshes {
         position: absolute;
         top: 12px;
         left: 12px;
-        width: min(330px, calc(100% - 150px));
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: 142px;
+        padding: 10px;
+        border: 1px solid #363636;
+        border-radius: 10px;
+        background: rgba(16, 16, 16, 0.74);
+      }
+      #space-meshes h2 {
+        margin: 0 0 4px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #a9a9a9;
+      }
+      #space-meshes button {
+        padding: 6px 9px;
+        font: inherit;
+        font-size: 12px;
+        text-align: left;
+        color: #dcdcdc;
+        background: #2a2a2a;
+        border: 1px solid #3c3c3c;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      #space-meshes button:hover {
+        background: #343434;
+      }
+      #space-meshes button:focus-visible {
+        outline: 2px solid var(--axis-z);
+        outline-offset: 1px;
+      }
+      #space-meshes button[aria-pressed="true"] {
+        background: #223247;
+        border-color: #37506e;
+        color: #ffffff;
+      }
+      #space-hud {
+        position: absolute;
+        top: 12px;
+        left: 166px;
+        width: min(330px, calc(100% - 340px));
         padding: 12px 14px;
         border: 1px solid #363636;
         border-radius: 10px;
@@ -114,7 +158,7 @@ export function spacePage(requestPath: string): string {
       }
       #space-status {
         position: absolute;
-        left: 12px;
+        left: 166px;
         bottom: 12px;
         margin: 0;
         padding: 6px 10px;
@@ -144,6 +188,14 @@ export function spacePage(requestPath: string): string {
   <body>
     <div id="space-root">
       <canvas id="space-canvas" aria-label="3D space"></canvas>
+      <aside id="space-meshes" aria-label="Meshes">
+        <h2>Mesh</h2>
+        <button type="button" data-mesh="tetrahedron" aria-pressed="false">Tetrahedron</button>
+        <button type="button" data-mesh="cube" aria-pressed="true" title="Cube (hexahedron)">Cube</button>
+        <button type="button" data-mesh="octahedron" aria-pressed="false">Octahedron</button>
+        <button type="button" data-mesh="dodecahedron" aria-pressed="false">Dodecahedron</button>
+        <button type="button" data-mesh="icosahedron" aria-pressed="false">Icosahedron</button>
+      </aside>
       <section id="space-hud" aria-label="3D space controls">
         <h1>3D orbit</h1>
         <div id="space-views">
