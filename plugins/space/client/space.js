@@ -29,6 +29,8 @@ const statusEl = document.getElementById('space-status')
 const errorEl = document.getElementById('space-error')
 const projectionButton = document.getElementById('space-projection')
 const frameButton = document.getElementById('space-frame')
+const cameraButton = document.getElementById('space-camera')
+const videoElement = document.getElementById('space-video')
 
 /** The six standard sides, as the spherical angles of the camera's position around the pivot. */
 const VIEWS = {
@@ -101,6 +103,25 @@ function start(webgl) {
   let scheduled = false
   let fallback = 0
   let drag = null
+
+  /** The shared selection endpoint of the app, and a queue so the last click is the last thing saved. */
+  const selectionUrl = document.getElementById('space-root')?.dataset.selection
+  let saving = Promise.resolve()
+  function saveShared(body) {
+    if (selectionUrl === undefined || selectionUrl === '') return
+    saving = saving
+      .then(() =>
+        fetch(selectionUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+      )
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+  }
 
   // ---- the scene -------------------------------------------------------------------------------------------------
 
@@ -241,10 +262,16 @@ function start(webgl) {
       })
       solid = null
     }
-    const geometry = standingGeometry(create())
+    const geometry = withFaceUvs(standingGeometry(create()), videoAspect())
     const mesh = new THREE.Mesh(
       geometry,
-      new THREE.MeshStandardMaterial({ color: 0xb9bfc6, roughness: 0.55, metalness: 0.05, flatShading: true }),
+      new THREE.MeshStandardMaterial({
+        color: cameraOn && videoTexture !== null ? 0xffffff : 0xb9bfc6,
+        roughness: 0.55,
+        metalness: 0.05,
+        flatShading: true,
+        map: cameraOn ? videoTexture : null,
+      }),
     )
     // The edges of the facets, so a projection surface reads as separate faces from any angle.
     mesh.add(
@@ -259,6 +286,165 @@ function start(webgl) {
       button.setAttribute('aria-pressed', String(button.dataset.mesh === name))
     }
     requestRender()
+  }
+
+
+  // ---- the camera: the live feed on every face ----------------------------------------------------------------
+
+  let cameraStream = null
+  let video = null
+  let videoTexture = null
+  let cameraOn = false
+
+  function videoAspect() {
+    return video !== null && video.videoWidth > 0 ? video.videoWidth / video.videoHeight : 16 / 9
+  }
+
+  /**
+   * The camera frame on every face. Each facet's corners get UVs onto the whole frame, cropped to the face's own shape (cover), with the face's
+   * up kept toward world up so the frame does not land upside down. Triangles are grouped by their plane, so a square face is one group and a
+   * pentagon's triangles share one group.
+   */
+  function withFaceUvs(geometry, aspect) {
+    const flat = geometry.index === null ? geometry : geometry.toNonIndexed()
+    if (flat !== geometry) geometry.dispose()
+    const position = flat.getAttribute('position')
+    const uv = new Float32Array(position.count * 2)
+    const groups = new Map()
+    const a = new THREE.Vector3()
+    const b = new THREE.Vector3()
+    const c = new THREE.Vector3()
+    for (let start = 0; start < position.count; start += 3) {
+      a.fromBufferAttribute(position, start)
+      b.fromBufferAttribute(position, start + 1)
+      c.fromBufferAttribute(position, start + 2)
+      const normal = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a))
+      if (normal.lengthSq() < 1e-12) continue
+      normal.normalize()
+      const key = `${normal.x.toFixed(3)},${normal.y.toFixed(3)},${normal.z.toFixed(3)},${normal.dot(a).toFixed(3)}`
+      let group = groups.get(key)
+      if (group === undefined) {
+        group = { normal, triangles: [] }
+        groups.set(key, group)
+      }
+      group.triangles.push(start)
+    }
+    const worldUp = new THREE.Vector3(0, 0, 1)
+    const corner = new THREE.Vector3()
+    for (const group of groups.values()) {
+      let up = worldUp.clone().addScaledVector(group.normal, -group.normal.dot(worldUp))
+      if (up.lengthSq() < 1e-6) {
+        up = new THREE.Vector3(0, 1, 0)
+        up.addScaledVector(group.normal, -group.normal.dot(up))
+      }
+      up.normalize()
+      const right = new THREE.Vector3().crossVectors(up, group.normal).normalize()
+      let minX = Infinity
+      let maxX = -Infinity
+      let minY = Infinity
+      let maxY = -Infinity
+      for (const start of group.triangles) {
+        for (let cornerIndex = 0; cornerIndex < 3; cornerIndex += 1) {
+          corner.fromBufferAttribute(position, start + cornerIndex)
+          const x = corner.dot(right)
+          const y = corner.dot(up)
+          minX = Math.min(minX, x)
+          maxX = Math.max(maxX, x)
+          minY = Math.min(minY, y)
+          maxY = Math.max(maxY, y)
+        }
+      }
+      const width = Math.max(maxX - minX, 1e-6)
+      const height = Math.max(maxY - minY, 1e-6)
+      const faceAspect = width / height
+      const scaleX = faceAspect > aspect ? 1 : faceAspect / aspect
+      const scaleY = faceAspect > aspect ? aspect / faceAspect : 1
+      for (const start of group.triangles) {
+        for (let cornerIndex = 0; cornerIndex < 3; cornerIndex += 1) {
+          corner.fromBufferAttribute(position, start + cornerIndex)
+          const x = (corner.dot(right) - minX) / width
+          const y = (corner.dot(up) - minY) / height
+          uv[(start + cornerIndex) * 2] = 0.5 + (x - 0.5) * scaleX
+          uv[(start + cornerIndex) * 2 + 1] = 0.5 + (y - 0.5) * scaleY
+        }
+      }
+    }
+    flat.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+    return flat
+  }
+
+  /** Put the live frame on the current solid, with the UVs of the video's real shape. */
+  function applyCameraTexture() {
+    if (solid === null || videoTexture === null) return
+    const next = withFaceUvs(solid.geometry, videoAspect())
+    if (next !== solid.geometry) {
+      solid.geometry.dispose()
+      solid.geometry = next
+    }
+    solid.material.map = videoTexture
+    solid.material.color.set(0xffffff)
+    solid.material.needsUpdate = true
+    requestRender()
+  }
+
+  function clearCameraTexture() {
+    if (solid === null) return
+    solid.material.map = null
+    solid.material.color.set(0xb9bfc6)
+    solid.material.needsUpdate = true
+    requestRender()
+  }
+
+  function stopCamera(save = true) {
+    if (cameraStream !== null) for (const track of cameraStream.getTracks()) track.stop()
+    cameraStream = null
+    if (video !== null) {
+      video.pause()
+      video.srcObject = null
+    }
+    video = null
+    if (videoTexture !== null) {
+      videoTexture.dispose()
+      videoTexture = null
+    }
+    cameraOn = false
+    cameraButton.setAttribute('aria-pressed', 'false')
+    clearCameraTexture()
+    if (save) saveShared({ camera: false })
+  }
+
+  async function startCamera() {
+    if (cameraStream !== null) return
+    if (navigator.mediaDevices?.getUserMedia === undefined) {
+      showFailure('This browser cannot open a camera.')
+      return
+    }
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      video = videoElement
+      video.muted = true
+      video.playsInline = true
+      video.autoplay = true
+      video.srcObject = cameraStream
+      await video.play()
+      videoTexture = new THREE.VideoTexture(video)
+      videoTexture.colorSpace = THREE.SRGBColorSpace
+      videoTexture.minFilter = THREE.LinearFilter
+      videoTexture.magFilter = THREE.LinearFilter
+      video.addEventListener('loadedmetadata', applyCameraTexture)
+      cameraOn = true
+      cameraButton.setAttribute('aria-pressed', 'true')
+      applyCameraTexture()
+      saveShared({ camera: true })
+    } catch (error) {
+      stopCamera()
+      showFailure(`The camera did not start: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  function toggleCamera() {
+    if (cameraOn) stopCamera()
+    else void startCamera()
   }
 
   /** The top right navigation gizmo: an X, Y and Z ball that follows the view, each one a shortcut to look along its axis. */
@@ -392,6 +578,8 @@ function start(webgl) {
     webgl.render(gizmoScene, gizmoCamera)
     webgl.setScissorTest(false)
     webgl.autoClear = true
+    // A live camera is a new frame every tick, so the viewport keeps drawing while it is on.
+    if (cameraOn) requestRender()
   }
 
   function resize() {
@@ -572,27 +760,13 @@ function start(webgl) {
   projectionButton.addEventListener('click', toggleProjection)
   frameButton.addEventListener('click', frame)
   // The choice is shared with the Flat state, which draws the same solid unfolded.
-  const selectionUrl = document.getElementById('space-root')?.dataset.selection
-  let saving = Promise.resolve()
   for (const button of document.querySelectorAll('[data-mesh]')) {
     button.addEventListener('click', () => {
       showSolid(button.dataset.mesh)
-      if (selectionUrl === undefined || selectionUrl === '') return
-      // One request after another, so a burst of clicks cannot save an older solid last.
-      saving = saving
-        .then(() =>
-          fetch(selectionUrl, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ solid: button.dataset.mesh }),
-          }),
-        )
-        .then(
-          () => undefined,
-          () => undefined,
-        )
+      saveShared({ solid: button.dataset.mesh })
     })
   }
+  cameraButton.addEventListener('click', toggleCamera)
   // The page comes with the shared selection already pressed.
   const chosen = document.querySelector('[data-mesh][aria-pressed="true"]')?.dataset.mesh
   showSolid(chosen ?? 'cube')
@@ -607,4 +781,6 @@ function start(webgl) {
   resize()
   applyCamera()
   render()
+  // The other state may have left the camera on.
+  if (document.getElementById('space-root')?.dataset.camera === 'on') void startCamera()
 }

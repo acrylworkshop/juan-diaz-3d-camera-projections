@@ -74,7 +74,7 @@
     {
       "name": "flat",
       "origin": "local",
-      "digest": "sha256:f1d44b0064154269ee15ccb204eb7ac1452db48c49591382aa90dabeabb5a645",
+      "digest": "sha256:eb3701296ca2198f93c783e24576d270a4bac7b0726c0212663298b796dd508c",
       "source": "plugins/flat"
     },
     {
@@ -122,13 +122,13 @@
     {
       "name": "selection",
       "origin": "local",
-      "digest": "sha256:4671cbd88ac700459f845edc9f76dcc9935dbf53ea2b11e6f8e8a2f54dcc8d6a",
+      "digest": "sha256:5fdc120c8c3932dcc1f022d632458f64b4bca7ad12f5da08bf159a030d197a58",
       "source": "plugins/selection"
     },
     {
       "name": "space",
       "origin": "local",
-      "digest": "sha256:b4a3fe62b9efd20994bfd72466d33dc21121c19321daf8bb4f5bf0b4aa518df8",
+      "digest": "sha256:0d31786528a46dcd375e1ada6133f46579e88ced236febf3cc5f183e1e3aa565",
       "source": "plugins/space"
     },
     {

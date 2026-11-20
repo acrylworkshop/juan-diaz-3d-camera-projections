@@ -39,7 +39,7 @@ const choose = (app: App, solid: unknown) =>
 test('the selection starts as the cube and both states show it', () =>
   withApp(async (app) => {
     const selection = await (await app.root.router.request('/selection')).json()
-    assert.deepEqual(selection, { solid: 'cube' })
+    assert.deepEqual(selection, { solid: 'cube', camera: false })
 
     const space = await (await app.root.router.request('/space')).text()
     assert.match(space, /data-mesh="cube" aria-pressed="true"/)
@@ -54,8 +54,8 @@ test('choosing a solid changes the Flat net and the 3D pressed button', () =>
   withApp(async (app) => {
     const answer = await choose(app, 'icosahedron')
     assert.equal(answer.status, 200)
-    assert.deepEqual(await answer.json(), { solid: 'icosahedron' })
-    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'icosahedron' })
+    assert.deepEqual(await answer.json(), { solid: 'icosahedron', camera: false })
+    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'icosahedron', camera: false })
 
     const flat = await (await app.root.router.request('/flat')).text()
     assert.match(flat, /Icosahedron · unfolded flat/)
@@ -64,6 +64,41 @@ test('choosing a solid changes the Flat net and the 3D pressed button', () =>
     const space = await (await app.root.router.request('/space')).text()
     assert.match(space, /data-mesh="icosahedron" aria-pressed="true"/)
     assert.match(space, /data-mesh="cube" aria-pressed="false"/)
+  }))
+
+test('the camera is shared by both states and starts off', () =>
+  withApp(async (app) => {
+    const on = await app.root.router.request('/selection', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ camera: true }),
+    })
+    assert.equal(on.status, 200)
+    assert.deepEqual(await on.json(), { solid: 'cube', camera: true })
+    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'cube', camera: true })
+
+    const space = await (await app.root.router.request('/space')).text()
+    assert.match(space, /data-camera="on"/)
+    assert.match(space, /id="space-camera" aria-pressed="true"/)
+    const flat = await (await app.root.router.request('/flat')).text()
+    assert.match(flat, /data-camera="on"/)
+    assert.match(flat, /id="flat-camera" aria-pressed="true"/)
+  }))
+
+test('a camera value that is not a boolean is refused', () =>
+  withApp(async (app) => {
+    const wrong = await app.root.router.request('/selection', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ camera: 'yes' }),
+    })
+    assert.equal(wrong.status, 400)
+    const empty = await app.root.router.request('/selection', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    assert.equal(empty.status, 400)
   }))
 
 test('a solid the app does not know is refused and changes nothing', () =>
@@ -75,7 +110,7 @@ test('a solid the app does not know is refused and changes nothing', () =>
       body: 'not json',
     })
     assert.equal(malformed.status, 400)
-    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'cube' })
+    assert.deepEqual(await (await app.root.router.request('/selection')).json(), { solid: 'cube', camera: false })
   }))
 
 test('the chosen solid survives a restart', async () => {
@@ -84,12 +119,18 @@ test('the chosen solid survives a restart', async () => {
     const first = await boot(home)
     try {
       assert.equal((await choose(first, 'dodecahedron')).status, 200)
+      // The camera is a run-time switch only: it goes off with the app, while the solid is kept.
+      await first.root.router.request('/selection', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ camera: true }),
+      })
     } finally {
       await first.stop()
     }
     const second = await boot(home)
     try {
-      assert.deepEqual(await (await second.root.router.request('/selection')).json(), { solid: 'dodecahedron' })
+      assert.deepEqual(await (await second.root.router.request('/selection')).json(), { solid: 'dodecahedron', camera: false })
       const flat = await (await second.root.router.request('/flat')).text()
       assert.equal(count(flat, '<polygon'), 12)
     } finally {

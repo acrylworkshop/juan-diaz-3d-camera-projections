@@ -19,7 +19,7 @@ function importMap(threeUrl: string): string {
 }
 
 /** The page: dark Blender-like viewport, the controls of the HUD, and the module that paints the space. */
-export function spacePage(requestPath: string, solid: Solid = 'cube'): string {
+export function spacePage(requestPath: string, solid: Solid = 'cube', camera = false): string {
   const base = spacePath(requestPath)
   // The shared selection lives beside the state pages, under the prefix the app is mounted at.
   const appBase = base.endsWith('/space') ? base.slice(0, -'/space'.length) : ''
@@ -54,6 +54,13 @@ export function spacePage(requestPath: string, solid: Solid = 'cube'): string {
       #space-root {
         position: relative;
         height: 100%;
+      }
+      #space-video {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
       }
       #space-canvas {
         display: block;
@@ -149,6 +156,11 @@ export function spacePage(requestPath: string, solid: Solid = 'cube'): string {
         outline: 2px solid var(--axis-z);
         outline-offset: 1px;
       }
+      #space-views button[aria-pressed="true"] {
+        background: #223247;
+        border-color: #37506e;
+        color: #ffffff;
+      }
       #space-legend {
         margin: 0;
         padding: 0;
@@ -190,7 +202,8 @@ export function spacePage(requestPath: string, solid: Solid = 'cube'): string {
     </style>
   </head>
   <body>
-    <div id="space-root" data-selection="${appBase}/selection">
+    <div id="space-root" data-selection="${appBase}/selection" data-camera="${camera ? 'on' : 'off'}">
+      <video id="space-video" playsinline muted aria-hidden="true"></video>
       <canvas id="space-canvas" aria-label="3D space"></canvas>
       <aside id="space-meshes" aria-label="Meshes">
         <h2>Mesh</h2>
@@ -211,6 +224,7 @@ export function spacePage(requestPath: string, solid: Solid = 'cube'): string {
           <button type="button" data-view="bottom">Bottom</button>
           <button type="button" id="space-projection">Perspective</button>
           <button type="button" id="space-frame">Frame</button>
+          <button type="button" id="space-camera" aria-pressed="${camera ? 'true' : 'false'}" title="Show the camera on every face">Camera</button>
         </div>
         <ul id="space-legend">
           <li><b>Orbit</b> drag with the left or middle button</li>

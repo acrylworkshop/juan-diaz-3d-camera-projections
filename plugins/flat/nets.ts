@@ -321,14 +321,24 @@ const round = (value: number): string => {
   return text.replace(/\.?0+$/u, '') || '0'
 }
 
+/** The drawing's viewBox: the net with a little air around it. */
+export function netViewBox(net: Net): [number, number, number, number] {
+  const pad = Math.max(net.width, net.height) * 0.05 + 0.05
+  return [net.minX - pad, net.minY - pad, net.width + pad * 2, net.height + pad * 2]
+}
+
+/** The dot on the base face, in the net's own coordinates. */
+export function netDotRadius(net: Net): number {
+  return Math.max(net.width, net.height) * 0.018
+}
+
 /** The net as an SVG, its own coordinates fitted to a viewBox; the page styles the paper and the lines. */
 export function netSvg(solid: Solid): string {
   const net = netOf(solid)
-  const pad = Math.max(net.width, net.height) * 0.05 + 0.05
-  const viewBox = [net.minX - pad, net.minY - pad, net.width + pad * 2, net.height + pad * 2].map(round).join(' ')
+  const viewBox = netViewBox(net).map(round).join(' ')
   const polygons = net.faces
     .map((face) => `<polygon points="${face.map((point) => `${round(point.x)},${round(point.y)}`).join(' ')}" />`)
     .join('')
-  const dot = `<circle class="flat-dot" cx="${round(net.dot.x)}" cy="${round(net.dot.y)}" r="${round(Math.max(net.width, net.height) * 0.018)}" />`
+  const dot = `<circle class="flat-dot" cx="${round(net.dot.x)}" cy="${round(net.dot.y)}" r="${round(netDotRadius(net))}" />`
   return `<svg class="flat-net" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${solid} unfolded flat" xmlns="http://www.w3.org/2000/svg">${polygons}${dot}</svg>`
 }

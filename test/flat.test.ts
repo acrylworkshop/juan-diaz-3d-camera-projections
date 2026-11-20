@@ -90,9 +90,14 @@ test('the net drawing has one polygon per face and a fitted viewBox', () => {
 })
 
 test('the Flat page names the solid and carries its net', () => {
-  const page = flatPage('dodecahedron')
+  const page = flatPage('/flat', 'dodecahedron')
   assert.match(page, /<h1>Flat<\/h1>/)
   assert.match(page, /Dodecahedron · unfolded flat/)
   assert.match(page, /<figure id="flat-net">/)
+  assert.match(page, /id="flat-camera" aria-pressed="false"/)
+  assert.match(page, /id="flat-net-data"/)
   assert.equal(page.split('<polygon').length - 1, 12)
+  const data = JSON.parse(page.slice(page.indexOf('id="flat-net-data">') + 'id="flat-net-data">'.length, page.indexOf('</script>', page.indexOf('id="flat-net-data">'))))
+  assert.equal(data.faces.length, 12)
+  assert.equal(data.viewBox.length, 4)
 })

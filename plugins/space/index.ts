@@ -65,7 +65,7 @@ export function apply(ctx: Context): void {
   }
 
   const app = new Acryl()
-    .get('/', (c) => c.html(spacePage(c.req.path, ctx.selection.solid)))
+    .get('/', (c) => c.html(spacePage(c.req.path, ctx.selection.solid, ctx.selection.camera)))
     .get('/client/space.js', (c) => {
       const source = own('./client/space.js')
       return source === undefined
