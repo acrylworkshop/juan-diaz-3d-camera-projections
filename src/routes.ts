@@ -26,7 +26,13 @@ export const FRAME_MOUNT_PREFIX = '/app'
  */
 export function makeApp(prefix = ''): Acryl {
   return new Acryl()
-    .get('/', (c) => c.json({ app: APP_NAME, ok: true }))
+    // A browser that lands on the app's root (the frame's canvas included) goes to the app's first state, the 3D view, with the state bar above it.
+    // An API client still gets the app's plain JSON there, so the root keeps answering as it always has.
+    .get('/', (c) =>
+      (c.req.header('accept') ?? '').includes('text/html')
+        ? c.redirect(`${prefix}/space`)
+        : c.json({ app: APP_NAME, ok: true }),
+    )
     .get('/health', (c) => c.json({ ok: true }))
     .get('/about', (c) => c.html(aboutPage()))
     .get('/counter', (c) => c.html(counterPage(prefix)))
