@@ -8,7 +8,7 @@
     "id": "acrylblends.projectionmapping",
     "kind": "Blueprint",
     "version": "0.1.0",
-    "digest": "43cf36f218975f26891ee17b73af64a24888141a163835bc1eb88af674cb07a9"
+    "digest": "fbe8ba8e41bbe2256e613c604cd272d27360199442cfe38d0d47088960e768db"
   },
   "parameters": {
     "hostname": "127.0.0.1"
