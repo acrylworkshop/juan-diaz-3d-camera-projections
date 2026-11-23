@@ -1,8 +1,10 @@
 # 3D Objects Camera Projections
 
+![The 3D space with the cube selected](docs/workshop-screenshot.png)
+
 Geometric solids in a three.js 3D space with Blender-like navigation, and the camera projection onto their faces. Pick a solid, orbit it, then switch to Flat and see it unfolded into one sheet.
 
-![The 3D space with the cube selected](docs/workshop-screenshot.png)
+![The Flat state: the cube unfolded into one sheet](docs/workshop-screenshot-flat.png)
 
 Built by **Juan Diaz** at the [ACRYL Bootcamp](https://github.com/acrylworkshop/bootcamp-2026-11-20), Vienna, 20 November 2026.
 
